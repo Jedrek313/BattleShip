@@ -1,0 +1,493 @@
+﻿
+
+@{
+    ViewData["Title"] = "Datails";
+}
+
+
+<h2>Details gameID  @(ViewContext.RouteData.Values["gameId"])</h2>
+
+
+<div class="row">
+    <div class="jumbotron">
+        <div class ="row">
+            <div id="set-board" class="col-sm-6 col-md-6 col-lg-6">
+                <div class="row">
+                    <div class="clearfix"></div>
+
+                    <div id="badSetAlert" class="alert alert-danger">
+                        You cannot set this square! Try to reset.
+                    </div>
+
+                    <h2>Set board</h2>
+
+                    <div class="board">
+
+                    </div>
+                </div>
+            </div>
+            <div id="set-list" class="col-sm-6 col-md-6 col-lg-6">
+                <div class="row">
+                    <div class="table-responsive">
+                        <table class="table table-striped ">
+                            <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Length</th>
+                                <th scope="col">Count</th>
+                            </tr>
+                            </thead>
+
+                            <tbody id="ShipsSettings"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <button onclick="reset()">Reset</button>
+                    </div>
+                    <div>
+                        <button onclick="start()">Start</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="player-board" class="col-sm-6 col-md-6 col-lg-6">
+                <div class="row">
+
+                    <div id="badBoardAlert" class="alert alert-danger">
+                        This is your board!
+                    </div>
+
+                    <h2>Player board</h2>
+
+                    <div class="board">
+
+                    </div>
+                </div>
+            </div>
+
+            <div id="enemy-board" class="col-sm-6 col-md-6 col-lg-6">
+                <div class="row">
+
+                    <div id="badMoveAlert" class="alert alert-danger">
+                        Illegal move!
+                    </div>
+
+                    <h2>Computer board</h2>
+
+                    <div class="board">
+                    </div>
+
+                </div>
+            </div>
+            <div id="messages">
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@* <script src="/lib/jquery/jquery.js"></script> *@
+@* <script src="/lib/bootstrap/js/bootstrap.js"></script> *@
+
+@section scripts{
+    <script type="text/javascript">
+
+        var shipsComposition = [];
+        var canSetBoard = false;
+        var lengthShipToSet = 0;
+        var shipToSet = [];
+        var shipsSetted = [];
+        var shipsCounter = 0;
+        var finished = false;
+
+        $(document).ready(function() {
+            var playerBoard = generatePlayerBoard();
+            var setBoard = generateSetBoard();
+            var enemyBoard = generateEnemyBoard();
+            $("#player-board .board").append(playerBoard);
+            $("#set-board .board").append(setBoard);
+            $("#enemy-board .board").append(enemyBoard);
+            $("#badBoardAlert").hide();
+            $("#badMoveAlert").hide();
+            $("#badSetAlert").hide();
+
+            getSettings();
+        });
+
+        function reset() {
+
+            shipsComposition = [];
+            canSetBoard = false;
+            lengthShipToSet = 0;
+            shipToSet = [];
+            shipsSetted = [];
+            shipsCounter = 0;
+            clearNode("ShipsSettings");
+            getSettings();
+            $("#set-board .square").css('background-color', 'transparent');
+            updateList();
+        }
+
+        function clearNode(nameName) {
+            var node = document.getElementById(nameName);
+            while (node.firstChild) {
+                node.removeChild(node.firstChild);
+            }
+        }
+
+        function getSettings() {
+            $.ajax({
+                url: "/Game/GetGameSettings/" + @ViewBag.id,
+                type: 'GET',
+                async: false,
+                success: function(result) {
+                    shipsComposition = result.shipsSetting;
+                    setBoard(shipsComposition);
+                    if (result.ships.length === 0) {
+                        $("#player-board").css('display', 'none');
+                        $("#enemy-board").css('display', 'none');
+                    } else {
+                        $("#set-board").css('display', 'none');
+                        $("#set-list").css('display', 'none');
+                    }
+                }
+            });
+        }
+
+        function setBoard() {
+            var shipsSetting = shipsComposition;
+            $.each(shipsSetting,
+                function(index, count) {
+                    $('#ShipsSettings').append(
+                        '<tr> \
+                        <td><button onclick=\"addShip(' +
+                        index +
+                        ')\">Add</button></td> \
+                        <td>' +
+                        index +
+                        '</td> \
+                        <td id="' +
+                        index +
+                        '">' +
+                        count +
+                        '</td> \
+                    </tr>'
+                    );
+                });
+        }
+
+        function start() {
+            var flag = true;
+            for (var i = 1; i <= Object.keys(shipsComposition).length; i++) {
+                if (shipsComposition[i] != 0) {
+                    flag = false;
+                }
+            }
+            if (flag) {
+//                Test();
+                flag = setShips(shipsSetted);
+            }
+            if (flag) {
+                $("#player-board").css('display', 'inline');
+                $("#enemy-board").css('display', 'inline');
+
+                $("#set-board").css('display', 'none');
+                $("#set-list").css('display', 'none');
+            }
+        }
+
+        function Test() {
+            var data = {
+                row: 1,
+                col: 2
+            };
+//            data.row = 1;
+//            data.col = 2;
+
+            $.ajax({
+                type: "POST",
+                url: "/Game/fPos",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                dataType: "json"
+            });
+
+        }
+
+        function setShips(list) {
+            var isSetted = false;
+
+            $.ajax({
+                url: "/Game/SetShips/" + @ViewBag.id,
+                type: 'POST',
+                async: false,
+                data: JSON.stringify(list),
+                dataType: 'json',
+                contentType: 'application/json',
+                //                contentType: 'application/json; charset=utf-8'
+                data: JSON.stringify(list),
+                success: function(result) {
+                    isSetted = result;
+                }
+            });
+            return isSetted;
+        }
+
+        function addShip(index) {
+            var count = shipsComposition[index];
+            if (count > 0) {
+                canSetBoard = true;
+                lengthShipToSet = index;
+                shipsCounter = shipsCounter + 1;
+            }
+        }
+
+        function generateSetBoard() {
+            var board = "";
+            for (var i = 0; i < 10; i++) {
+                for (var j = 0; j < 10; j++) {
+                    var res = String.fromCharCode(65 + j);
+                    board += "<div class='square' id='" +
+                        i +
+                        "" +
+                        j +
+                        "s" +
+                        "' data-x='" +
+                        (j) +
+                        "' data-y='" +
+                        (i) +
+                        "' onclick=\"clickSetSquare(this)\"></div>";
+                }
+            }
+            return board;
+        }
+
+        function generatePlayerBoard() {
+            var board = "";
+            for (var i = 0; i < 10; i++) {
+                for (var j = 0; j < 10; j++) {
+                    var res = String.fromCharCode(65 + j);
+                    board += "<div class='square' id='" +
+                        i +
+                        "" +
+                        j +
+                        "p" +
+                        "' data-x='" +
+                        (j) +
+                        "' data-y='" +
+                        (i) +
+                        "'  onclick=\"clickPlayerSquare(this)\"></div>";
+                }
+            }
+            return board;
+        }
+
+        function generateEnemyBoard() {
+            var board = "";
+            for (var i = 0; i < 10; i++) {
+                for (var j = 0; j < 10; j++) {
+//                    var res = String.fromCharCode(65 + j);
+                    board += "<div class='square' id='" +
+                        i +
+                        "" +
+                        j +
+                        "e" +
+                        "' data-x='" +
+                        (j) +
+                        "' data-y='" +
+                        (i) +
+                        "'  onclick=\"clickEnemySquare(this)\"></div>";
+                }
+            }
+            return board;
+        }
+
+        var clickSetSquare = function(obj) {
+            if (canSetBoard &&
+                lengthShipToSet > 0 &&
+                $(obj).attr('background-color') !== 'black') {
+                var x = $(obj).attr('data-x');
+                var y = $(obj).attr('data-y');
+                if (Object.keys(shipToSet).length == 0 || (Object.keys(shipToSet).length > 0 && checkSetBoard(x, y))) {
+                    shipToSet.push({
+                        key: x,
+                        value: y
+                    });
+
+                    shipsSetted.push({
+                        'shipNumber': parseInt(shipsCounter - 1),
+                        'key': parseInt(x),
+                        'value': parseInt(y)
+                    });
+
+                    $(obj).css('background-color', 'black');
+                    if (Object.keys(shipToSet).length == lengthShipToSet) {
+                        canSetBoard = false;
+                        var length = parseInt(shipsComposition[lengthShipToSet]) - 1;
+                        shipsComposition[lengthShipToSet] = length;
+                        lengthShipToSet = 0;
+                        shipToSet = [];
+                        updateList();
+                    }
+                }
+            } else {
+                showAlert("#badSetAlert");
+            }
+        }
+
+        function updateList() {
+            for (var i = 1; i <= Object.keys(shipsComposition).length; i++) {
+                document.getElementById(i).innerHTML = shipsComposition[i];
+//                document.getElementsByClassName("ShipsSettings").getElementById(i).innerHTML = shipsComposition[i];
+//                $("#ShipsSettings ." + i).text = shipsComposition[i];
+            }
+        }
+
+        function checkSetBoard(x, y) {
+            var flag = false;
+            var length = Object.keys(shipToSet).length;
+            for (var i = 0; i < length; i++) {
+
+                var doubleCheck = 0;
+                if (length > 1) {
+                    if (shipToSet[0].key == shipToSet[1].key) {
+                        doubleCheck = 1;
+                    } else if (shipToSet[0].value == shipToSet[1].value) {
+                        doubleCheck = -1;
+                    }
+                }
+
+                var position = shipToSet[i];
+                if (position.key != x && position.value == y && doubleCheck <= 0) {
+                    var x1 = parseInt(x) + 1;
+                    var x2 = x - 1;
+                    if (position.key == x1 || position.key == x2) {
+                        flag = true;
+                    }
+                } else if (position.key == x && position.value != y && doubleCheck >= 0) {
+                    var y1 = parseInt(y) + 1;
+                    var y2 = y - 1;
+                    if (position.value == y1 || position.value == y2) {
+                        flag = true;
+                    }
+                }
+            }
+            return flag;
+        }
+
+
+        function clickPlayerSquare(obj) {
+            showAlert("#badBoardAlert");
+        }
+
+        function clickEnemySquare(obj) {
+            if (finished) {
+                alert("game is Finished");
+            } else if ($(obj).attr('background-color') !== 'transparent') {
+                var result = false;
+                var x = $(obj).attr('data-x');
+                var y = $(obj).attr('data-y');
+                var shotResult = takeShot(x, y);
+                if (shotResult.success && shotResult.hit) {
+                    $(obj).css('background-color', 'red');
+                    isFinished();
+                    if (finished) {
+                        alert("Player wins");
+                    } else {
+                        enemyMove();
+                    }
+                } else if (shotResult.success == true) {
+                    $(obj).css('background-color', 'white');
+                    enemyMove();
+                } else {
+                    showAlert("#badMoveAlert");
+                }
+            } else {
+                showAlert("#badMoveAlert");
+            }
+        }
+
+
+        function takeShot(x, y) {
+            var shotResult = {};
+
+            $.ajax({
+                url: "/Game/ShotEnemyShip/" + @ViewBag.id,
+                type: 'POST',
+                async: false,
+                data: {
+                    "x": x,
+                    "y": y
+                },
+//                dataType: 'json',
+//                contentType: 'application/json',
+                //                contentType: 'application/json; charset=utf-8'
+                success: function(result) {
+                    shotResult = result;
+                }
+            });
+            return shotResult;
+        }
+
+
+        function enemyMove() {
+            var enemyShotResult = getShot();
+            var id = enemyShotResult.y + "" + enemyShotResult.x + "p";
+            var node = document.getElementById(id);
+            if (enemyShotResult.success && enemyShotResult.hit) {
+                $(node).css('background-color', 'red');
+                isFinished();
+                if (finished) {
+                    alert("Enemy wins");
+                }
+            } else if (enemyShotResult.success) {
+                $(node).css('background-color', 'white');
+            } else {
+                //TODO:
+            }
+
+        }
+
+        function isFinished() {
+            $.ajax({
+                url: "/Game/IsFinished/" + @ViewBag.id,
+                type: 'POST',
+                async: false,
+                dataType: 'json',
+                contentType: 'application/json',
+                success: function(isFinished) {
+                    finished = isFinished;
+                }
+            });
+            return finished;
+
+        }
+
+        function getShot() {
+            var enemyShotResult = {};
+
+            $.ajax({
+                url: "/Game/GetEnemyShot/" + @ViewBag.id,
+                type: 'POST',
+                async: false,
+//                data: JSON.stringify(list),
+                dataType: 'json',
+                contentType: 'application/json',
+                //                contentType: 'application/json; charset=utf-8'
+                success: function(result) {
+                    enemyShotResult = result;
+                }
+            });
+            return enemyShotResult;
+        }
+
+        function showAlert(alert) {
+            $(alert).show();
+            setTimeout(function () {
+                $(alert).hide();
+            }, 2000);
+        }
+
+    </script>
+}

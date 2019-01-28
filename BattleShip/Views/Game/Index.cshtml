@@ -1,0 +1,81 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+}
+
+<div class="row">
+    <div class="table-responsive">
+        <table class="table table-striped ">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">City</th>
+                    <th scope="col">Temperature</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td type="button" scope="col" class="btn btn-info" onclick="refreshWeather()">Refresh</td>
+                    <td scope="col">Warsaw</td>
+                    <td scope="col" id="temp">0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<div class="row">
+    <button type="button" class="btn btn-primary .btn-lg " onclick="newGame()">New Game</button>
+</div>
+@* <div class="row"> *@
+@*     <button type="button" class="btn btn-info" onclick="refreshWeather()"></button> *@
+@* </div> *@
+
+
+    @section scripts{
+        <script type="text/javascript">
+
+            var tempCelc = 0;
+
+            $(document).ready(function () {
+                refreshWeather();
+            });
+
+            function Round(n, k) 
+            {
+                var factor = Math.pow(10, k+1);
+                n = Math.round(Math.round(n*factor)/10);
+                return n/(factor/10);
+            }
+
+            var newGame = function () {
+                $.ajax({
+                    url: "/Game/Create",
+                    type: 'POST',
+                    //                async: false,
+                    success: function (data) {
+                        var location = "/game/details/" + data.gameId;
+                        //                    var location = "/game/details/5";
+                        window.location.href = location;
+                    }
+                });
+            }
+
+            //        public static String city = "Warsaw";
+            //        public static String requestURL = "http://api.openweathermap.org/data/2.5/weather?q=" + city + ",pl&APPID=4878fd9db754512ef66c8a6fcd34cb58";
+
+            var refreshWeather = function () {
+                $.ajax({
+                    url: "https://api.openweathermap.org/data/2.5/weather?q=%20Warsaw,pl&APPID=4878fd9db754512ef66c8a6fcd34cb58",
+                    type: 'GET',
+                    async: false,
+                    success: function (data) {
+                        tempCelc = data.main.temp - 273.15;
+                        document.getElementById("temp").innerHTML = Round(tempCelc, 1);
+                    }
+                });
+            }
+
+        </script>
+    }
